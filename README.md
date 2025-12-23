@@ -129,7 +129,3 @@ Update the `CVE-feeds/` directory with the latest NVD feeds for more comprehensi
 
 ### ATLAS Customization
 Modify `ATLAS.yaml` to include custom techniques or update with latest MITRE ATLAS data.
-
-## License
-
-[Add your license here]
