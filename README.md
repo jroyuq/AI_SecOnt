@@ -26,9 +26,56 @@ This will delete all output files while preserving your input data and base file
 ## File Structure
 
 - `example-results/`: Contains an example modelscan results file showing the expected JSON format
-- `CVE-feeds/`: Pre-loaded CVE database feeds for vulnerability matching
+- `CVE-feeds/`: Directory for CVE database feeds (download required, see below)
 - `*.py`: Pipeline scripts (main.py is the entry point)
 - `*.ttl`: Ontology files (base_ontology.ttl is required, others are generated)
+
+## CVE Feeds (Required – Not Included in Repository)
+
+⚠️ CVE feeds are NOT stored in this repository due to their large size and frequent updates.
+
+You must download them manually or via CI (recommended).
+
+### Official Source (NVD – NIST)
+
+Download CVE JSON feeds from the official NVD website:
+
+https://nvd.nist.gov/vuln/data-feeds
+
+Direct feed format used by this pipeline:
+
+```bash
+nvdcve-2.0-YYYY.json.gz
+```
+
+### Supported years typically include:
+
+2020 – current year
+
+### Expected Directory Structure
+
+After downloading, your project should look like this:
+
+```bash
+OntoSec/
+├── CVE-feeds/
+│   ├── nvdcve-2.0-2020.json.gz
+│   ├── nvdcve-2.0-2021.json.gz
+│   ├── nvdcve-2.0-2022.json.gz
+│   ├── nvdcve-2.0-2023.json.gz
+│   ├── nvdcve-2.0-2024.json.gz
+│   └── nvdcve-2.0-2025.json.gz
+├── results-scanner-modelscan.json
+├── main.py
+├── requirements.txt
+└── ...
+```
+
+The pipeline expects this exact directory name:
+
+```bash
+CVE-feeds/
+```
 
 ## Prerequisites
 
