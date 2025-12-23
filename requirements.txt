@@ -1,0 +1,6 @@
+rdflib==7.2.1
+sentence-transformers==5.1.2
+torch==2.2.2
+transformers==4.57.1
+pyyaml==6.0.1
+numpy<2

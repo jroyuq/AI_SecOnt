@@ -1,0 +1,16 @@
+# Generated CVE data
+CVE-feeds/
+example-results/
+
+# Scanner outputs
+results-*.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# ML / binaries
+*.pt
+*.pkl
+

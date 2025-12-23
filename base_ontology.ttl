@@ -1,0 +1,18 @@
+@prefix ontosec: <http://example.org/ontosec#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# Base OntoSec ontology
+ontosec: a owl:Ontology ;
+    rdfs:label "OntoSec Ontology"@en .
+
+# Basic classes
+ontosec:Vulnerability a owl:Class ;
+    rdfs:label "Vulnerability"@en .
+
+ontosec:Technique a owl:Class ;
+    rdfs:label "Technique"@en .
+
+ontosec:Mitigation a owl:Class ;
+    rdfs:label "Mitigation"@en .
