@@ -54,9 +54,10 @@ def main():
     print("Step 3: Augmenting with ATLAS Techniques...")
     input_file = os.getenv("GLOBAL_TTL", "global_ontology.ttl")
     atlas_file = os.getenv("ATLAS_PATH", "ATLAS.yaml")
+    nist_file = os.getenv("NIST_PATH", "NIST.yaml")
     base_onto = os.getenv("BASE_ONTOLOGY", "base_ontology.ttl")
     output_file = os.getenv("GLOBAL_TTL", "global_ontology.ttl")
-    run_command(f"python3 global_augmenter.py --input {input_file} --atlas {atlas_file} --base-onto {base_onto} --output {output_file}")
+    run_command(f"python3 global_augmenter.py --input {input_file} --atlas {atlas_file} --nist {nist_file} --base-onto {base_onto} --output {output_file}")
 
     print("Pipeline completed successfully!")
     print(f"Output: {os.getenv('GLOBAL_TTL', 'global_ontology.ttl')}")

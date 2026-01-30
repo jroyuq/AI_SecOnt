@@ -5,6 +5,10 @@ example-results/
 # Scanner outputs
 results-*.json
 
+# Generated ontology files (outputs)
+global_ontology.ttl
+local_ontology.ttl
+
 # Python
 .venv/
 __pycache__/

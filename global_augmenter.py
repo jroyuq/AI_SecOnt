@@ -70,6 +70,49 @@ def load_atlas_yaml(atlas_path):
     print(f"[DEBUG] Loaded {len(normalized)} techniques from ATLAS.yaml")
     return normalized
 
+def load_nist_yaml(nist_path):
+    """Load local NIST.yaml and normalize entries (techniques/mitigations/tactics)."""
+    with open(nist_path, "r", encoding="utf-8") as f:
+        nist = yaml.safe_load(f)
+
+    normalized = {}
+    # NIST.yaml in this repo is a list of items; first pass: collect all entries
+    if isinstance(nist, list):
+        for entry in nist:
+            if not isinstance(entry, dict):
+                continue
+            nid = entry.get("id")
+            name = entry.get("name", "").strip()
+            desc = entry.get("description", "")
+            obj_type = entry.get("object-type", "").lower()
+            if nid:
+                normalized[nid] = {
+                    "id": nid,
+                    "name": name,
+                    "description": desc.strip() if isinstance(desc, str) else "",
+                    "object-type": obj_type,
+                    "mitigations": entry.get("mitigations") or [],
+                    "tactics": entry.get("tactics", [])
+                }
+    
+    # Second pass: resolve mitigation IDs to full mitigation objects
+    for nid, entry in normalized.items():
+        resolved_mits = []
+        for mit_ref in entry.get("mitigations", []):
+            # mit_ref could be a string (ID) or dict; resolve to full object
+            if isinstance(mit_ref, str) and mit_ref in normalized:
+                # It's an ID, resolve to the full mitigation object
+                resolved_mits.append(normalized[mit_ref])
+            elif isinstance(mit_ref, dict):
+                resolved_mits.append(mit_ref)
+            elif isinstance(mit_ref, str):
+                # Couldn't resolve; keep as minimal object
+                resolved_mits.append({"id": mit_ref, "name": mit_ref, "description": ""})
+        entry["mitigations"] = resolved_mits
+
+    print(f"[DEBUG] Loaded {len(normalized)} items from NIST.yaml")
+    return normalized
+
 def find_vulnerabilities_local_ns(graph):
     """Find Vulnerability individuals in any namespace."""
     vulns = []
@@ -104,6 +147,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", "-i", default=os.getenv("GLOBAL_TTL", "global_ontology.ttl"), help="Input TTL with Vulnerability individuals")
     parser.add_argument("--atlas", "-a", default=os.getenv("ATLAS_PATH", "ATLAS.yaml"), help="Local ATLAS.yaml path")
+    parser.add_argument("--nist", default=os.getenv("NIST_PATH", "NIST.yaml"), help="Local NIST.yaml path")
     parser.add_argument("--base-onto", "-b", default=os.getenv("BASE_ONTOLOGY", "base_ontology.ttl"), help="Base OntoSec ontology TTL")
     parser.add_argument("--output", "-o", default=os.getenv("GLOBAL_TTL", "OntoSec_Global-Augmented.ttl"), help="Output TTL file")
     parser.add_argument("--model", "-m", default="all-mpnet-base-v2", help="SentenceTransformer model")
@@ -202,6 +246,20 @@ def main():
     atlas_items = list(atlas.values())
     print(f"[+] Loaded {len(atlas_items)} ATLAS techniques.")
 
+    # Load NIST.yaml (optional)
+    nist_items = {}
+    nist_texts = []
+    nist_embeddings = None
+    if args.nist and os.path.exists(args.nist):
+        print("[*] Loading NIST.yaml ...")
+        nist = load_nist_yaml(args.nist)
+        # Keep only techniques for matching but retain mitigations for later
+        nist_items = [v for v in nist.values() if v.get("object-type") == "technique"]
+        print(f"[+] Loaded {len(nist_items)} NIST techniques.")
+        nist_texts = [t.get("name","") + " - " + t.get("description","") for t in nist_items]
+    else:
+        print("[-] NIST.yaml not found or not provided; skipping NIST augmentation.")
+
     # Prepare texts for ATLAS embeddings
     atlas_texts = [t.get("name","") + " - " + t.get("description","") for t in atlas_items]
 
@@ -211,6 +269,11 @@ def main():
 
     print("[*] Encoding ATLAS techniques ...")
     atlas_embeddings = embed_model.encode(atlas_texts, convert_to_tensor=True, show_progress_bar=True)
+
+    # Encode NIST techniques if present
+    if nist_texts:
+        print("[*] Encoding NIST techniques ...")
+        nist_embeddings = embed_model.encode(nist_texts, convert_to_tensor=True, show_progress_bar=True)
 
     # Merge base + input graph
     out_g = base_g + in_g
@@ -244,6 +307,8 @@ def main():
     NAME = ONTOSEC.Name
     DESC = ONTOSEC.Description
     ATTREF = URIRef(str(ONTOSEC) + "ATTCK-reference-id")
+    NISTREF = URIRef(str(ONTOSEC) + "NIST-reference-id")
+    HASNIST = ONTOSEC.hasNISTTechnique
     ISMIT = ONTOSEC.isMitigatedBy
     HASTECH = ONTOSEC.hasTechnique
     MATCH_SCORE = ONTOSEC.matchScore
@@ -353,6 +418,73 @@ def main():
                 if m_id:
                     out_g.add((node, ATTREF, Literal(m_id, datatype=XSD.string)))
                 out_g.add((subj_v, ISMIT, node))
+
+        # --- NIST matching (if NIST data is present) ---
+        if nist_embeddings is not None and nist_texts:
+            cos_scores_nist = util.cos_sim(v_emb, nist_embeddings)[0].cpu().numpy()
+            ranked_nidx = list(reversed(np.argsort(cos_scores_nist)))
+            n_matches = []
+            for ridx in ranked_nidx:
+                score = float(cos_scores_nist[int(ridx)])
+                if score < args.threshold:
+                    break
+                n_matches.append((int(ridx), score))
+                if len(n_matches) >= args.topk:
+                    break
+
+            if not n_matches:
+                best_nidx = int(np.argmax(cos_scores_nist))
+                best_nscore = float(cos_scores_nist[best_nidx])
+                n_matches = [(best_nidx, best_nscore)]
+
+            print(f"  -> Found {len(n_matches)} NIST match(es) (threshold {args.threshold})")
+            for n_rank, (n_idx, n_score) in enumerate(n_matches, start=1):
+                nmatched = nist_items[n_idx]
+                print(f"    {n_rank}. {nmatched['id']} - {nmatched['name']} (score {n_score:.3f})")
+                n_desc = nmatched.get('description','').strip()
+                if n_desc:
+                    preview = n_desc if len(n_desc) <= 240 else n_desc[:237] + '...'
+                    print(f"       description: {preview}")
+
+                # Add NIST reference (first match only)
+                if n_rank == 1:
+                    out_g.add((subj_v, NISTREF, Literal(nmatched['id'], datatype=XSD.string)))
+
+                # Create NIST Technique individual
+                ntech_node = URIRef(str(ONTOSEC) + f"Technique_NIST_{nmatched['id']}")
+                if not list(out_g.triples((ntech_node, None, None))):
+                    out_g.add((ntech_node, RDF.type, TECH))
+                    out_g.add((ntech_node, NAME, Literal(nmatched.get('name',''), datatype=XSD.string)))
+                    out_g.add((ntech_node, DESC, Literal(nmatched.get('description',''), datatype=XSD.string)))
+                    out_g.add((ntech_node, NISTREF, Literal(nmatched['id'], datatype=XSD.string)))
+
+                # Add provenance
+                out_g.add((ntech_node, MATCH_SCORE, Literal(n_score, datatype=XSD.float)))
+                out_g.add((ntech_node, MATCH_RANK, Literal(n_rank, datatype=XSD.int)))
+                # Link vulnerability to NIST technique
+                out_g.add((subj_v, HASNIST, ntech_node))
+                out_g.add((subj_v, HAVE, ntech_node))
+
+                # If the NIST technique lists mitigations, add them
+                for m_i, mit in enumerate(nmatched.get('mitigations', []) or []):
+                    if isinstance(mit, dict):
+                        m_name = mit.get('name') or mit.get('title') or ''
+                        m_desc = mit.get('description') or mit.get('details') or ''
+                        m_id = mit.get('id') or ''
+                    else:
+                        m_name = str(mit)
+                        m_desc = ''
+                        m_id = ''
+                    node = URIRef(str(ONTOSEC) + f"Mitigation_NIST_{nmatched['id']}_{n_rank}_{m_i}")
+                    out_g.add((node, RDF.type, MIT))
+                    if m_name:
+                        out_g.add((node, NAME, Literal(m_name, datatype=XSD.string)))
+                    if m_desc:
+                        out_g.add((node, DESC, Literal(m_desc, datatype=XSD.string)))
+                    if m_id:
+                        out_g.add((node, NISTREF, Literal(m_id, datatype=XSD.string)))
+                    out_g.add((subj_v, ISMIT, node))
+                    out_g.add((subj_v, HAVE, node))
 
     # Serialize output
     out_g.serialize(destination=args.output, format="turtle")

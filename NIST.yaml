@@ -1,0 +1,108 @@
+---
+- id: NISTAML.05
+  name: AI Supply Chain Compromise
+  description: |
+    The adversary is attempting to compromise the AI system through vulnerabilities
+    in the AI supply chain.
+
+    Since AI systems are software systems, they inherit traditional software supply
+    chain risks such as reliance on third-party dependencies. AI systems also introduce
+    additional supply chain dependencies including large-scale data collection and
+    scoring pipelines, integration or adaptation of third-party foundation models,
+    and the integration of third-party plugins into AI-enabled systems.
+
+    Adversaries may exploit weaknesses across the full AI attack surface, including
+    data pipelines, model artifacts, supporting software, and network or storage
+    infrastructure. Some supply chain attacks specifically exploit the statistical
+    and data-driven properties of machine learning systems and fall within the domain
+    of Adversarial Machine Learning (AML).
+  object-type: tactic
+  created_date: 2025-03-01
+  modified_date: 2025-03-01
+
+- id: NISTAML.013
+  name: Data Poisoning
+  description: |
+    The adversary is attempting to manipulate the behavior of an AI model by inserting
+    maliciously crafted data into the training or fine-tuning datasets.
+
+    Modern generative AI models are commonly trained on very large datasets sourced
+    from diverse and often untrusted origins, including web-scale scraping and
+    large numbers of human contributors. The scale and diversity of these datasets
+    create opportunities for adversaries to introduce poisoned data samples.
+
+    Data poisoning may occur during pre-training, instruction tuning, or reinforcement
+    learning from human feedback (RLHF). Adversaries may inject data that causes the
+    model to learn malicious behaviors, such as hidden backdoors or targeted failures,
+    while requiring only a small fraction of the total dataset.
+
+    Data poisoning attacks can enable universal jailbreaks, targeted misbehavior in
+    response to specific trigger inputs, or degraded model outputs such as insecure
+    code generation.
+  tactics:
+    - NISTAML.05
+  mitigations:
+    - NISTAML.M001
+    - NISTAML.M002
+  object-type: technique
+  created_date: 2025-03-01
+  modified_date: 2025-03-01
+
+- id: NISTAML.051
+  name: Model Poisoning
+  description: |
+    The adversary is attempting to compromise downstream AI systems by distributing
+    maliciously modified pre-trained models.
+
+    AI developers frequently rely on foundation models produced by third parties.
+    Adversaries may exploit this trust relationship by offering poisoned pre-trained
+    models that contain embedded backdoors or targeted malicious behaviors.
+
+    Model poisoning attacks rely on the adversary controlling the initial model
+    artifact. Malicious behaviors may persist even after downstream users apply
+    fine-tuning or additional safety training, allowing the adversary to retain
+    influence over model behavior after deployment.
+
+    These attacks may enable backdoor activation or targeted manipulation of model
+    outputs in response to specific inputs.
+  tactics:
+    - NISTAML.05
+  mitigations:
+    - NISTAML.M001
+    - NISTAML.M002
+  object-type: technique
+  created_date: 2025-03-01
+  modified_date: 2025-03-01
+
+- id: NISTAML.M001
+  name: AI Supply Chain Integrity Verification
+  description: |
+    Verify the integrity and provenance of AI artifacts and training data obtained
+    from external sources.
+
+    Mitigations include validating cryptographic hashes of training data and model
+    artifacts, monitoring for unauthorized changes to data sources, and ensuring
+    that web-scale data dependencies have not been modified through domain hijacking
+    or similar attacks.
+
+    Organizations should treat models and data obtained from third parties as
+    untrusted components and design systems to reduce the impact of malicious
+    model behavior.
+  object-type: mitigation
+  created_date: 2025-03-01
+  modified_date: 2025-03-01
+
+- id: NISTAML.M002
+  name: Backdoor Detection and Behavioral Analysis
+  description: |
+    Detect and mitigate malicious behaviors introduced through data or model
+    poisoning.
+
+    Proposed approaches include using mechanistic interpretability techniques to
+    identify backdoor features, monitoring model behavior for trigger-based activation
+    at inference time, and implementing runtime safeguards to limit the impact of
+    attacker-controlled outputs.
+  object-type: mitigation
+  created_date: 2025-03-01
+  modified_date: 2025-03-01
+
