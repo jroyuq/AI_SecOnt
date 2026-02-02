@@ -1,6 +1,6 @@
-# OntoSec Pipeline
+# AI SecOnto
 
-A comprehensive pipeline for scanning machine learning models for vulnerabilities, merging them into an ontology, and augmenting with MITRE ATLAS techniques.
+A comprehensive pipeline for scanning machine learning models for vulnerabilities, merging them into an ontology, and augmenting with MITRE ATLAS and NIST AI security techniques.
 
 ## Quick Start for New Users
 
@@ -27,6 +27,8 @@ This will delete all output files while preserving your input data and base file
 
 - `example-results/`: Contains an example modelscan results file showing the expected JSON format
 - `CVE-feeds/`: Directory for CVE database feeds (download required, see below)
+- `ATLAS.yaml`: MITRE ATLAS AI security techniques and mitigations
+- `NIST.yaml`: NIST AI security techniques and mitigations
 - `*.py`: Pipeline scripts (main.py is the entry point)
 - `*.ttl`: Ontology files (base_ontology.ttl is required, others are generated)
 
@@ -91,17 +93,68 @@ pip install -r requirements.txt
 
 ## What the Pipeline Does
 
-1. **Scans vulnerabilities**: Matches your modelscan issues to CVE database using semantic similarity
+1. **Scans vulnerabilities**: Matches your modelscan issues to CVE database using semantic similarity with AI embeddings
 2. **Merges ontologies**: Safely combines local findings into a general vulnerability ontology
 3. **Augments with ATLAS**: Links vulnerabilities to MITRE ATLAS techniques and recommended mitigations
+4. **Augments with NIST**: Links vulnerabilities to NIST AI security techniques and mitigations
+
+## AI Model Used
+
+The pipeline uses **SentenceTransformer `all-mpnet-base-v2`** for semantic text matching:
+- Converts vulnerability descriptions into 768-dimensional embeddings
+- Performs cosine similarity calculations for intelligent matching
+- Enables semantic understanding beyond simple keyword matching
 
 ## Output
 
 The final result is `global_ontology.ttl` containing:
 - Your vulnerabilities linked to specific CVEs
-- Associated ATLAS attack techniques
+- Associated ATLAS attack techniques with detailed relationships
+- Associated NIST AI security techniques with mitigations
 - Recommended mitigation strategies
-- All properly structured with no duplicate classes
+- All properly structured with detailed object properties
+
+### Ontology Relationships
+
+The ontology uses detailed object properties for precise semantic relationships:
+
+- `Mitigates`: Links mitigations to what they mitigate
+- `isMitigatedBy`: Links vulnerabilities to their mitigations
+- `isExploitedBy`: Links vulnerabilities to exploiting techniques
+
+## Querying the Ontology
+
+Use SPARQL queries to extract insights from your security ontology:
+
+### Find All Mitigations for a Specific Issue
+```sparql
+PREFIX ontosec: <http://example.org/ontosec#>
+
+SELECT ?mitigation ?name ?description ?reference
+WHERE {
+  ontosec:Issue_1 ontosec:isMitigatedBy ?mitigation .
+  ?mitigation ontosec:Name ?name .
+  OPTIONAL { ?mitigation ontosec:Description ?description }
+  OPTIONAL {
+    ?mitigation ontosec:ATTCK-reference-id ?reference
+  }
+  OPTIONAL {
+    ?mitigation ontosec:NIST-reference-id ?reference
+  }
+}
+```
+
+### Find All Mitigations Across All Issues
+```sparql
+PREFIX ontosec: <http://example.org/ontosec#>
+
+SELECT ?issue ?mitigation ?name ?description
+WHERE {
+  ?issue ontosec:isMitigatedBy ?mitigation .
+  ?mitigation ontosec:Name ?name .
+  OPTIONAL { ?mitigation ontosec:Description ?description }
+}
+```
 
 ## Configuration
 
@@ -129,3 +182,6 @@ Update the `CVE-feeds/` directory with the latest NVD feeds for more comprehensi
 
 ### ATLAS Customization
 Modify `ATLAS.yaml` to include custom techniques or update with latest MITRE ATLAS data.
+
+### NIST Customization
+Modify `NIST.yaml` to include additional AI security techniques or update with latest NIST guidelines.

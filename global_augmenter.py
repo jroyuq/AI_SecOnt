@@ -296,9 +296,17 @@ def main():
     if not local_ns_uri:
         local_ns_uri = "http://example.org/local#"
 
-    HAVE = URIRef(str(local_ns_uri) + "have")
-    # Declare the local property as an OWL ObjectProperty so it appears in the output
-    out_g.add((HAVE, RDF.type, OWL.ObjectProperty))
+    # Define detailed object properties
+    MITIGATES = URIRef(str(local_ns_uri) + "Mitigates")
+    HASTECH = URIRef(str(local_ns_uri) + "hasTechnique")
+    ISMIT = URIRef(str(local_ns_uri) + "isMitigatedBy")
+    ISEXPLOITEDBY = URIRef(str(local_ns_uri) + "isExploitedBy")
+
+    # Declare the local properties as OWL ObjectProperties
+    out_g.add((MITIGATES, RDF.type, OWL.ObjectProperty))
+    out_g.add((HASTECH, RDF.type, OWL.ObjectProperty))
+    out_g.add((ISMIT, RDF.type, OWL.ObjectProperty))
+    out_g.add((ISEXPLOITEDBY, RDF.type, OWL.ObjectProperty))
 
     # Ontology predicates & classes
     VULN = ONTOSEC.Vulnerability
@@ -308,9 +316,6 @@ def main():
     DESC = ONTOSEC.Description
     ATTREF = URIRef(str(ONTOSEC) + "ATTCK-reference-id")
     NISTREF = URIRef(str(ONTOSEC) + "NIST-reference-id")
-    HASNIST = ONTOSEC.hasNISTTechnique
-    ISMIT = ONTOSEC.isMitigatedBy
-    HASTECH = ONTOSEC.hasTechnique
     MATCH_SCORE = ONTOSEC.matchScore
     MATCH_RANK = ONTOSEC.matchRank
 
@@ -386,8 +391,8 @@ def main():
             out_g.add((tech_node, MATCH_RANK, Literal(rank, datatype=XSD.int)))
             # Link vulnerability to technique
             out_g.add((subj_v, HASTECH, tech_node))
-            # Also assert local object property linking vulnerability to technique (e.g., :have)
-            out_g.add((subj_v, HAVE, tech_node))
+            # Link technique as exploiter of the issue
+            out_g.add((subj_v, ISEXPLOITEDBY, tech_node))
 
             # Create Mitigation node for technique
             mit_node = URIRef(str(ONTOSEC) + f"Mitigation_{matched['id']}_{rank}")
@@ -395,9 +400,9 @@ def main():
             out_g.add((mit_node, NAME, Literal(matched.get("name",""), datatype=XSD.string)))
             out_g.add((mit_node, DESC, Literal(matched.get("description",""), datatype=XSD.string)))
             out_g.add((mit_node, ATTREF, Literal(matched["id"], datatype=XSD.string)))
+            # Link mitigation to issue and technique
+            out_g.add((mit_node, MITIGATES, subj_v))
             out_g.add((subj_v, ISMIT, mit_node))
-            # Also assert local property linking vulnerability to mitigation
-            out_g.add((subj_v, HAVE, mit_node))
 
             # Add additional mitigations if available
             for m_i, mit in enumerate(matched.get("mitigations", []) or []):
@@ -417,6 +422,7 @@ def main():
                     out_g.add((node, DESC, Literal(m_desc, datatype=XSD.string)))
                 if m_id:
                     out_g.add((node, ATTREF, Literal(m_id, datatype=XSD.string)))
+                out_g.add((node, MITIGATES, subj_v))
                 out_g.add((subj_v, ISMIT, node))
 
         # --- NIST matching (if NIST data is present) ---
@@ -462,8 +468,7 @@ def main():
                 out_g.add((ntech_node, MATCH_SCORE, Literal(n_score, datatype=XSD.float)))
                 out_g.add((ntech_node, MATCH_RANK, Literal(n_rank, datatype=XSD.int)))
                 # Link vulnerability to NIST technique
-                out_g.add((subj_v, HASNIST, ntech_node))
-                out_g.add((subj_v, HAVE, ntech_node))
+                out_g.add((subj_v, ISEXPLOITEDBY, ntech_node))
 
                 # If the NIST technique lists mitigations, add them
                 for m_i, mit in enumerate(nmatched.get('mitigations', []) or []):
@@ -483,9 +488,8 @@ def main():
                         out_g.add((node, DESC, Literal(m_desc, datatype=XSD.string)))
                     if m_id:
                         out_g.add((node, NISTREF, Literal(m_id, datatype=XSD.string)))
+                    out_g.add((node, MITIGATES, subj_v))
                     out_g.add((subj_v, ISMIT, node))
-                    out_g.add((subj_v, HAVE, node))
-
     # Serialize output
     out_g.serialize(destination=args.output, format="turtle")
     print(f"\n[+] Wrote augmented ontology to: {args.output} (total triples: {len(out_g)})")
