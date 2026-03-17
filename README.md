@@ -2,6 +2,8 @@
 
 A comprehensive pipeline for scanning machine learning models for vulnerabilities, merging them into an ontology, and augmenting with MITRE ATLAS and NIST AI security techniques.
 
+**Latest Updates**: Ontology structure now includes `Issue` as a subclass of `Vulnerability` for better semantic organization.
+
 ## Quick Start for New Users
 
 1. **Get your modelscan results**: Run modelscan on your ML models and save the JSON output as `results-scanner-modelscan.json`
@@ -49,6 +51,17 @@ Direct feed format used by this pipeline:
 ```bash
 nvdcve-2.0-YYYY.json.gz
 ```
+
+### How CVEs Are Processed
+
+The pipeline performs the following steps for CVE matching:
+
+1. **Loading**: Decompresses and loads CVE data from `.json.gz` files on-the-fly (no persistent decompression)
+2. **Filtering**: Pre-filters CVEs using keywords: `["python", "pickle", "pytorch"]` to focus on relevant AI/ML security issues
+3. **Semantic Matching**: Uses AI embeddings to semantically match vulnerability descriptions with CVE descriptions
+4. **Association**: Links issues to CVEs when similarity score ≥ 0.50
+
+**Note**: Files are decompressed in memory during each run - the compressed `.gz` files remain unchanged on disk.
 
 ### Supported years typically include:
 
@@ -121,10 +134,32 @@ The ontology uses detailed object properties for precise semantic relationships:
 - `Mitigates`: Links mitigations to what they mitigate
 - `isMitigatedBy`: Links vulnerabilities to their mitigations
 - `isExploitedBy`: Links vulnerabilities to exploiting techniques
+- `hasTechnique`: Links issues to associated attack techniques
+
+#### Class Hierarchy
+
+The ontology follows this class structure:
+- `Vulnerability` (top-level class)
+  - `Issue` (subclass of Vulnerability)
+    - `Issue_1`, `Issue_2`, etc. (instances of Issue)
+
+Individual issues are instances of the `Issue` class, which is a subclass of `Vulnerability`.
 
 ## Querying the Ontology
 
 Use SPARQL queries to extract insights from your security ontology:
+
+### Find All Issues and Their Types
+```sparql
+PREFIX ontosec: <http://example.org/ontosec#>
+
+SELECT ?issue ?type
+WHERE {
+  ?issue a ontosec:Issue .
+  ?issue a ?type .
+  FILTER(?type != ontosec:Issue)  # Show additional types
+}
+```
 
 ### Find All Mitigations for a Specific Issue
 ```sparql
