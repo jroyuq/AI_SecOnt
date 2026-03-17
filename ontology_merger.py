@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Merge local_ontology.ttl into global_ontology.ttl
-Only merges individuals of the Issue class as individuals of the Vulnerability class.
+Keeps individuals as Issue class (subclass of Vulnerability).
 """
 
 import os
@@ -23,13 +23,19 @@ if os.path.exists(GENERAL_TTL):
 g_local = Graph()
 g_local.parse(LOCAL_TTL, format="turtle")
 
-# Find all individuals of Issue and add them as Vulnerability
+# Ensure Issue class definition exists in general graph
+if (ontosec.Issue, RDF.type, None) not in g_general:
+    from rdflib.namespace import RDFS, OWL
+    from rdflib import Literal
+    g_general.bind("ontosec", ontosec)
+    g_general.add((ontosec.Issue, RDF.type, OWL.Class))
+    g_general.add((ontosec.Issue, RDFS.subClassOf, ontosec.Vulnerability))
+    g_general.add((ontosec.Issue, RDFS.label, Literal("Issue")))
+
+# Find all individuals of Issue and add them as Issue (preserving class hierarchy)
 for s in g_local.subjects(RDF.type, ontosec.Issue):
-    # Remove the Issue type if present in general
-    if (s, RDF.type, ontosec.Issue) in g_general:
-        g_general.remove((s, RDF.type, ontosec.Issue))
-    # Add as Vulnerability
-    g_general.add((s, RDF.type, ontosec.Vulnerability))
+    # Add as Issue (which is a subclass of Vulnerability)
+    g_general.add((s, RDF.type, ontosec.Issue))
     # Add all other triples for this individual
     for p, o in g_local.predicate_objects(s):
         if not (p == RDF.type and o == ontosec.Issue):
@@ -38,4 +44,4 @@ for s in g_local.subjects(RDF.type, ontosec.Issue):
 # Serialize back to general file
 g_general.serialize(GENERAL_TTL, format="turtle")
 
-print(f"Merged Issue individuals as Vulnerability into {GENERAL_TTL}")
+print(f"Merged Issue individuals (preserving Issue class) into {GENERAL_TTL}")

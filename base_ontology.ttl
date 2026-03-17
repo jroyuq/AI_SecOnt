@@ -11,6 +11,10 @@ ontosec: a owl:Ontology ;
 ontosec:Vulnerability a owl:Class ;
     rdfs:label "Vulnerability"@en .
 
+ontosec:Issue a owl:Class ;
+    rdfs:subClassOf ontosec:Vulnerability ;
+    rdfs:label "Issue"@en .
+
 ontosec:Technique a owl:Class ;
     rdfs:label "Technique"@en .
 

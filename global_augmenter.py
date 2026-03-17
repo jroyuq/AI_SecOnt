@@ -191,7 +191,10 @@ def main():
     # Find vulnerabilities in input graph
     vulns = []
     for s, o in in_g.subject_objects(RDF.type):
-        if o.split('/')[-1].endswith('Vulnerability') or o.split('#')[-1] == 'Vulnerability':
+        # Match both Vulnerability and Issue types (Issue is subclass of Vulnerability)
+        o_str = str(o)
+        if (o_str.endswith('Vulnerability') or o_str.endswith('#Vulnerability') or
+            o_str.endswith('Issue') or o_str.endswith('#Issue')):
             # extract description and name if present
             desc = ""
             name = ""
@@ -323,6 +326,12 @@ def main():
     out_g.add((TECH, RDF.type, OWL.Class))
     out_g.add((VULN, RDF.type, OWL.Class))
     out_g.add((MIT, RDF.type, OWL.Class))
+    
+    # Add Issue class as subclass of Vulnerability
+    ISSUE = ONTOSEC.Issue
+    out_g.add((ISSUE, RDF.type, OWL.Class))
+    out_g.add((ISSUE, RDFS.subClassOf, VULN))
+    out_g.add((ISSUE, RDFS.label, Literal("Issue")))
 
     # Process each vulnerability
     for idx, v in enumerate(vulns, start=1):
